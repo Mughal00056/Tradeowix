@@ -199,24 +199,38 @@ export const TradeDock: React.FC<TradeDockProps> = ({
         </div>
       </div>
 
-      {/* Row 3: Action Buttons (LOWER & HIGHER) */}
-      <div className="grid grid-cols-2 gap-2.5">
+      {/* Row 3: Action Buttons (LOWER & HIGHER - Authentic TradoWix Buttons) */}
+      <div className="grid grid-cols-2 gap-3">
         {/* LOWER (Red) */}
         <button
           onClick={() => handleButtonClick('LOWER')}
-          className="flex items-center justify-between bg-[#ef4444] hover:bg-[#dc2626] active:bg-[#b91c1c] text-white px-4 py-3 rounded-xl font-extrabold text-sm tracking-wide shadow-md shadow-red-500/20 active:scale-[0.98] transition-all cursor-pointer"
+          className="group relative flex items-center justify-between bg-linear-to-r from-[#ef4444] to-[#dc2626] hover:from-[#dc2626] hover:to-[#b91c1c] active:scale-[0.97] text-white px-4 py-3 rounded-2xl font-black text-sm tracking-wide shadow-lg shadow-red-500/25 transition-all cursor-pointer overflow-hidden border border-red-400/30"
         >
-          <span className="tracking-wider">LOWER</span>
-          <span className="text-base font-black">↘</span>
+          <div className="flex flex-col text-left">
+            <span className="tracking-wider text-sm font-black drop-shadow-xs">LOWER</span>
+            <span className="text-[10px] font-mono-numbers font-bold text-red-100 opacity-90">
+              ${amount.toFixed(0)}
+            </span>
+          </div>
+          <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/30 shadow-inner group-hover:scale-105 transition-transform">
+            <span className="text-lg font-black leading-none">↘</span>
+          </div>
         </button>
 
         {/* HIGHER (Green) */}
         <button
           onClick={() => handleButtonClick('HIGHER')}
-          className="flex items-center justify-between bg-[#10b981] hover:bg-[#059669] active:bg-[#047857] text-white px-4 py-3 rounded-xl font-extrabold text-sm tracking-wide shadow-md shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer"
+          className="group relative flex items-center justify-between bg-linear-to-r from-[#10b981] to-[#059669] hover:from-[#059669] hover:to-[#047857] active:scale-[0.97] text-white px-4 py-3 rounded-2xl font-black text-sm tracking-wide shadow-lg shadow-emerald-500/25 transition-all cursor-pointer overflow-hidden border border-emerald-400/30"
         >
-          <span className="tracking-wider">HIGHER</span>
-          <span className="text-base font-black">↗</span>
+          <div className="flex flex-col text-left">
+            <span className="tracking-wider text-sm font-black drop-shadow-xs">HIGHER</span>
+            <span className="text-[10px] font-mono-numbers font-bold text-emerald-100 opacity-90">
+              +${profitAmount.toFixed(2)}
+            </span>
+          </div>
+          <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/30 shadow-inner group-hover:scale-105 transition-transform">
+            <span className="text-lg font-black leading-none">↗</span>
+          </div>
         </button>
       </div>
     </div>

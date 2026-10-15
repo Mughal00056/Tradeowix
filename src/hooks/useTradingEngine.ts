@@ -277,6 +277,7 @@ export function useTradingEngine() {
           });
 
           setClosedTrades((prev) => [...finished, ...prev]);
+          setLastFinishedTrade(finished[finished.length - 1]);
         }
 
         return remaining;

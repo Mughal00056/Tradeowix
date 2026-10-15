@@ -52,14 +52,14 @@ export const DepositModal: React.FC<DepositModalProps> = ({
       });
       const bonusAmount = applyBonus ? depositAmount * 0.7 : 0;
       onDepositSuccess(depositAmount + bonusAmount, selectedMethod || 'USDT');
-      alert(`Deposit Successful!\nAdded $${depositAmount} + $${bonusAmount.toFixed(2)} bonus to your balance.`);
       onClose();
     }, 1200);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex flex-col bg-slate-900/60 backdrop-blur-2xl animate-in fade-in duration-200 select-none overflow-hidden">
+      {/* Full Screen Glass Container */}
+      <div className="w-full h-full flex flex-col bg-white/92 backdrop-blur-3xl shadow-2xl overflow-hidden relative">
         {/* Top Header matching Screenshot 5 */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-white sticky top-0 z-20">
           <TradoWixLogo size="sm" showText={true} />

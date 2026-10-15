@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { TradeOrder, Asset } from '../types/trading';
 import { AssetIcon } from './AssetIcon';
-import { X, ChevronDown, ArrowUpRight, ArrowDownRight, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { X, ChevronDown, Clock, CheckCircle2, XCircle, ChevronLeft, ArrowUpRight, ArrowDownRight, Briefcase } from 'lucide-react';
 import { playClickSound } from '../utils/audio';
 
 interface TradesDrawerProps {
@@ -10,6 +10,7 @@ interface TradesDrawerProps {
   assets: Asset[];
   currentPrices: Record<string, number>;
   onClose: () => void;
+  onSelectTrade?: (trade: TradeOrder) => void;
 }
 
 export const TradesDrawer: React.FC<TradesDrawerProps> = ({
@@ -18,10 +19,10 @@ export const TradesDrawer: React.FC<TradesDrawerProps> = ({
   assets,
   currentPrices,
   onClose,
+  onSelectTrade,
 }) => {
   const [tab, setTab] = useState<'open' | 'closed'>('open');
 
-  // Total current P/L
   const totalPL = openTrades.reduce((acc, t) => {
     const cur = currentPrices[t.assetId] || t.entryPrice;
     const isWinning =
@@ -32,27 +33,44 @@ export const TradesDrawer: React.FC<TradesDrawerProps> = ({
   }, 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/35 backdrop-blur-md animate-in fade-in duration-150">
-      {/* Frosted Glass Container (Screenshot Capture+_2026-10-15-12-01-48.png) */}
-      <div className="relative w-full max-w-md bg-white/90 backdrop-blur-2xl rounded-t-3xl sm:rounded-2xl max-h-[88vh] flex flex-col shadow-2xl border border-white/60 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex flex-col bg-slate-900/60 backdrop-blur-2xl animate-in fade-in duration-200 select-none overflow-hidden">
+      {/* Full Screen Glass Container */}
+      <div className="w-full h-full flex flex-col bg-white/92 backdrop-blur-3xl shadow-2xl overflow-hidden relative">
         {/* Soft pastel ambient background orbs */}
-        <div className="absolute -top-16 -right-16 w-52 h-52 bg-pink-100/50 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-16 -left-16 w-52 h-52 bg-emerald-100/50 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-purple-200/30 rounded-full blur-3xl pointer-events-none -z-10" />
+        <div className="absolute bottom-10 left-10 w-96 h-96 bg-emerald-200/30 rounded-full blur-3xl pointer-events-none -z-10" />
 
-        {/* Header matching Screenshot 11: 💼 Portfolio  (1)   ✕ */}
-        <div className="relative z-10 flex items-center justify-between px-4 py-3.5 border-b border-slate-100/80 bg-white/50 backdrop-blur-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 border border-purple-200/60">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-              </svg>
+        {/* Top Header with Back button and Close */}
+        <div className="h-16 px-4 sm:px-8 border-b border-slate-200/70 flex items-center justify-between bg-white/75 backdrop-blur-xl shrink-0 z-20">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                playClickSound();
+                onClose();
+              }}
+              className="w-10 h-10 rounded-xl bg-slate-100/90 hover:bg-slate-200/90 text-slate-700 flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-xs border border-slate-200/60"
+              title="Back"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 border border-purple-200/60">
+                <Briefcase className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+                    Trades & Portfolio
+                  </h1>
+                  {openTrades.length > 0 && (
+                    <span className="w-5 h-5 rounded-full bg-[#6366f1] text-white flex items-center justify-center text-[10px] font-bold font-mono-numbers">
+                      {openTrades.length}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-400 font-medium">Active positions & historical settlements</p>
+              </div>
             </div>
-            <span className="font-extrabold text-base text-slate-900 tracking-tight">Portfolio</span>
-            {openTrades.length > 0 && (
-              <span className="w-5 h-5 rounded-full bg-[#6366f1] text-white flex items-center justify-center text-[10px] font-bold font-mono-numbers">
-                {openTrades.length}
-              </span>
-            )}
           </div>
 
           <button
@@ -60,66 +78,66 @@ export const TradesDrawer: React.FC<TradesDrawerProps> = ({
               playClickSound();
               onClose();
             }}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100/80 transition-colors"
+            className="w-10 h-10 rounded-xl bg-slate-100/80 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-all active:scale-95 cursor-pointer border border-slate-200/60"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Top P/L Status Bar (Screenshot 11: P/L +$0.81) */}
+        {/* P/L Status Bar */}
         {openTrades.length > 0 && (
-          <div className="relative z-10 px-4 py-2 border-b border-slate-100/60 bg-white/40 flex items-center gap-2 text-xs font-semibold">
-            <span className="text-slate-400">P/L</span>
-            <span
-              className={`font-mono-numbers font-bold text-sm ${
-                totalPL >= 0 ? 'text-[#10b981]' : 'text-red-500'
-              }`}
-            >
-              {totalPL >= 0 ? `+$${totalPL.toFixed(2)}` : `-$${Math.abs(totalPL).toFixed(2)}`}
-            </span>
+          <div className="px-4 sm:px-8 py-3 bg-white/60 backdrop-blur-md border-b border-slate-200/50 flex items-center justify-between shrink-0 max-w-5xl mx-auto w-full">
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+              <span>Total Active P/L:</span>
+              <span
+                className={`font-mono-numbers font-black text-base ${
+                  totalPL >= 0 ? 'text-emerald-600' : 'text-red-500'
+                }`}
+              >
+                {totalPL >= 0 ? `+$${totalPL.toFixed(2)}` : `-$${Math.abs(totalPL).toFixed(2)}`}
+              </span>
+            </div>
+            <span className="text-xs text-slate-400 font-medium">Real-time calculations</span>
           </div>
         )}
 
         {/* Tabs: Active vs Closed */}
-        <div className="relative z-10 flex border-b border-slate-100/80 px-4 pt-1 bg-white/30">
+        <div className="max-w-5xl mx-auto w-full px-4 sm:px-8 border-b border-slate-200/70 bg-white/70 backdrop-blur-md shrink-0 flex items-center gap-6">
           <button
             onClick={() => {
               playClickSound();
               setTab('open');
             }}
-            className={`flex-1 py-2 text-xs font-bold transition-all relative ${
-              tab === 'open' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-700'
+            className={`py-3.5 text-xs sm:text-sm font-bold flex items-center gap-2 transition-all relative cursor-pointer ${
+              tab === 'open' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-400 hover:text-slate-700 border-b-2 border-transparent'
             }`}
           >
-            Active ({openTrades.length})
-            {tab === 'open' && (
-              <span className="absolute bottom-0 inset-x-4 h-0.5 bg-indigo-600 rounded-t-full" />
-            )}
+            <Clock className="w-4 h-4" />
+            <span>Active Positions ({openTrades.length})</span>
           </button>
+
           <button
             onClick={() => {
               playClickSound();
               setTab('closed');
             }}
-            className={`flex-1 py-2 text-xs font-bold transition-all relative ${
-              tab === 'closed' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-700'
+            className={`py-3.5 text-xs sm:text-sm font-bold flex items-center gap-2 transition-all relative cursor-pointer ${
+              tab === 'closed' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-400 hover:text-slate-700 border-b-2 border-transparent'
             }`}
           >
-            Closed History ({closedTrades.length})
-            {tab === 'closed' && (
-              <span className="absolute bottom-0 inset-x-4 h-0.5 bg-indigo-600 rounded-t-full" />
-            )}
+            <CheckCircle2 className="w-4 h-4" />
+            <span>Closed History ({closedTrades.length})</span>
           </button>
         </div>
 
-        {/* List of trades (Screenshot 11 layout) */}
-        <div className="relative z-10 flex-1 overflow-y-auto divide-y divide-slate-100/80 p-2">
+        {/* Scrollable list */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-3 max-w-5xl mx-auto w-full custom-scrollbar">
           {tab === 'open' ? (
             openTrades.length === 0 ? (
-              <div className="py-14 text-center">
-                <Clock className="w-10 h-10 text-slate-300 mx-auto mb-2 stroke-1" />
-                <p className="text-xs text-slate-500 font-semibold">No active trades in portfolio</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">Execute HIGHER or LOWER to begin</p>
+              <div className="py-24 text-center">
+                <Clock className="w-12 h-12 text-slate-300 mx-auto mb-3 stroke-1" />
+                <p className="text-sm text-slate-600 font-bold">No active trades in portfolio</p>
+                <p className="text-xs text-slate-400 mt-1">Execute HIGHER or LOWER on the chart to start a live trade</p>
               </div>
             ) : (
               openTrades.map((t) => {
@@ -139,33 +157,46 @@ export const TradesDrawer: React.FC<TradesDrawerProps> = ({
                 return (
                   <div
                     key={t.id}
-                    className="p-3 hover:bg-slate-50/50 rounded-2xl transition-colors flex items-center justify-between"
+                    onClick={() => {
+                      playClickSound();
+                      onSelectTrade?.(t);
+                      onClose();
+                    }}
+                    className="p-4 bg-white/75 backdrop-blur-xl rounded-2xl border border-white/80 shadow-xs hover:shadow-md hover:border-indigo-300 transition-all flex items-center justify-between cursor-pointer group"
+                    title="Tap to show on chart"
                   >
-                    <div className="flex items-center gap-3">
-                      <AssetIcon flags={flags} size="sm" />
+                    <div className="flex items-center gap-3.5">
+                      <AssetIcon flags={flags} size="md" />
                       <div>
-                        <div className="font-extrabold text-xs text-slate-900 tracking-tight">
-                          {t.assetSymbol.replace(' (OTC)', '')}
+                        <div className="font-extrabold text-sm sm:text-base text-slate-900 tracking-tight">
+                          {t.assetSymbol}
                         </div>
-                        <div className="text-[11px] font-mono-numbers text-slate-400 mt-0.5">
-                          0:{remainingSec.toString().padStart(2, '0')}
+                        <div className="text-xs font-mono-numbers text-slate-400 mt-0.5 flex items-center gap-2">
+                          <span className="flex items-center gap-1 font-semibold text-slate-600">
+                            <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                            00:{remainingSec.toString().padStart(2, '0')}
+                          </span>
+                          <span>•</span>
+                          <span>Strike: {t.entryPrice.toFixed(4)}</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="text-right">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-1.5">
                         <span
-                          className={`font-mono-numbers font-black text-xs ${
-                            isWinning ? 'text-[#10b981]' : 'text-red-500'
+                          className={`font-mono-numbers font-black text-sm sm:text-base ${
+                            isWinning ? 'text-emerald-600' : 'text-red-500'
                           }`}
                         >
                           {isWinning ? `+$${plAmount.toFixed(2)}` : `-$${t.amount.toFixed(2)}`}
                         </span>
-                        <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
                       </div>
-                      <div className="text-[10px] text-slate-400 font-mono-numbers mt-0.5">
-                        ${t.amount.toFixed(2)} {t.direction === 'HIGHER' ? '↗' : '↘'}
+                      <div className="text-xs text-slate-500 font-mono-numbers mt-0.5 font-bold flex items-center justify-end gap-1">
+                        <span>${t.amount.toFixed(2)}</span>
+                        <span className={t.direction === 'HIGHER' ? 'text-emerald-600' : 'text-red-500'}>
+                          {t.direction === 'HIGHER' ? '▲ HIGHER' : '▼ LOWER'}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -173,42 +204,48 @@ export const TradesDrawer: React.FC<TradesDrawerProps> = ({
               })
             )
           ) : closedTrades.length === 0 ? (
-            <div className="py-14 text-center text-xs text-slate-400">
-              No closed trades recorded yet
+            <div className="py-24 text-center text-sm text-slate-400">
+              No closed trades recorded yet. Completed trades will automatically appear here.
             </div>
           ) : (
             closedTrades.map((t) => (
               <div
                 key={t.id}
-                className="p-3 hover:bg-slate-50/50 rounded-xl transition-colors flex items-center justify-between"
+                onClick={() => {
+                  playClickSound();
+                  onSelectTrade?.(t);
+                  onClose();
+                }}
+                className="p-4 bg-white/75 backdrop-blur-xl rounded-2xl border border-white/80 shadow-2xs hover:shadow-md hover:border-indigo-300 transition-all flex items-center justify-between cursor-pointer group"
+                title="Tap to show trade on graph"
               >
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-3">
                   <span
-                    className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold ${
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black ${
                       t.status === 'WON'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-red-100 text-red-700'
+                        ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                        : 'bg-red-100 text-red-700 border border-red-200'
                     }`}
                   >
-                    {t.status === 'WON' ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                    {t.status === 'WON' ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
                   </span>
                   <div>
-                    <div className="text-xs font-bold text-slate-800">{t.assetSymbol}</div>
-                    <div className="text-[10px] text-slate-400 font-mono-numbers">
-                      {new Date(t.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {t.direction}
+                    <div className="text-sm font-extrabold text-slate-800">{t.assetSymbol}</div>
+                    <div className="text-xs text-slate-400 font-mono-numbers mt-0.5">
+                      {new Date(t.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} · {t.direction}
                     </div>
                   </div>
                 </div>
 
                 <div className="text-right font-mono-numbers">
                   <div
-                    className={`text-xs font-bold ${
-                      t.status === 'WON' ? 'text-[#10b981]' : 'text-red-500'
+                    className={`text-sm sm:text-base font-black ${
+                      t.status === 'WON' ? 'text-emerald-600' : 'text-red-500'
                     }`}
                   >
                     {t.status === 'WON' ? `+$${t.profit.toFixed(2)}` : `-$${t.amount.toFixed(2)}`}
                   </div>
-                  <div className="text-[10px] text-slate-400">
+                  <div className="text-xs text-slate-400">
                     Exit: {t.exitPrice?.toFixed(4) || '--'}
                   </div>
                 </div>

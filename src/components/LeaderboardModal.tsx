@@ -28,9 +28,9 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/35 backdrop-blur-md animate-in fade-in duration-150">
-      {/* Frosted Glass Container with dreamy pastel ambient glow behind */}
-      <div className="relative w-full max-w-md bg-white/90 backdrop-blur-2xl rounded-t-3xl sm:rounded-2xl max-h-[90vh] flex flex-col shadow-2xl border border-white/60 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex flex-col bg-slate-900/60 backdrop-blur-2xl animate-in fade-in duration-200 select-none overflow-hidden">
+      {/* Full Screen Glass Container */}
+      <div className="w-full h-full flex flex-col bg-white/92 backdrop-blur-3xl shadow-2xl overflow-hidden relative">
         {/* Soft pastel ambient background orbs */}
         <div className="absolute -top-20 -left-20 w-60 h-60 bg-pink-100/50 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-20 -right-20 w-60 h-60 bg-emerald-100/50 rounded-full blur-3xl pointer-events-none" />

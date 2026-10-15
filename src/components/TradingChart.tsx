@@ -1,15 +1,20 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Asset, Candle, TradeOrder } from '../types/trading';
 import { SlidersHorizontal, TrendingUp, BarChart2, Layers } from 'lucide-react';
+import { playClickSound } from '../utils/audio';
 
 interface TradingChartProps {
   asset: Asset;
   candles: Candle[];
   currentPrice: number;
   openTrades: TradeOrder[];
+  closedTrades?: TradeOrder[];
+  inspectedTrade?: TradeOrder | null;
+  onSelectTrade?: (trade: TradeOrder | null) => void;
   timeframeSeconds: number;
   setTimeframeSeconds: (seconds: number) => void;
   countdownSeconds: number;
+  onOpenAssetInfo?: () => void;
 }
 
 export const TradingChart: React.FC<TradingChartProps> = ({
@@ -17,9 +22,13 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   candles,
   currentPrice,
   openTrades,
+  closedTrades = [],
+  inspectedTrade,
+  onSelectTrade,
   timeframeSeconds,
   setTimeframeSeconds,
   countdownSeconds,
+  onOpenAssetInfo,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 380, height: 420 });
@@ -178,14 +187,57 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         </span>
       </div>
 
-      {/* TOP CHART INFO (Beginning of trade / End of trade - Screenshot 1 & 6) */}
-      <div className="absolute top-2 left-10 right-18 flex items-center justify-between text-[11px] text-slate-400 z-10 pointer-events-none">
+      {/* Floating Inspected Trade History Banner */}
+      {inspectedTrade && (
+        <div className="absolute top-2 left-2 right-2 z-30 flex items-center justify-between px-3 py-1.5 rounded-xl bg-slate-900/90 backdrop-blur-xl text-white shadow-lg border border-slate-700/60 animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="flex items-center gap-2 overflow-hidden text-xs">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                inspectedTrade.status === 'WON'
+                  ? 'bg-emerald-400 animate-pulse'
+                  : inspectedTrade.status === 'LOST'
+                  ? 'bg-red-400'
+                  : 'bg-amber-400'
+              }`}
+            />
+            <span className="font-extrabold tracking-tight">{inspectedTrade.assetSymbol}</span>
+            <span
+              className={`font-black px-1.5 py-0.5 rounded-md text-[10px] ${
+                inspectedTrade.direction === 'HIGHER' ? 'bg-emerald-500/30 text-emerald-300' : 'bg-red-500/30 text-red-300'
+              }`}
+            >
+              {inspectedTrade.direction === 'HIGHER' ? '↗ HIGHER' : '↘ LOWER'} ${inspectedTrade.amount}
+            </span>
+            <span className="font-mono-numbers text-[11px] text-slate-300">
+              Entry: {inspectedTrade.entryPrice.toFixed(asset.decimals)} → Exit: {inspectedTrade.exitPrice?.toFixed(asset.decimals) || '--'}
+            </span>
+            {inspectedTrade.status && (
+              <span
+                className={`font-mono-numbers font-black text-xs ${
+                  inspectedTrade.status === 'WON' ? 'text-emerald-400' : 'text-red-400'
+                }`}
+              >
+                {inspectedTrade.status === 'WON' ? `+$${inspectedTrade.profit.toFixed(2)}` : `-$${inspectedTrade.amount.toFixed(2)}`}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              playClickSound();
+              onSelectTrade?.(null);
+            }}
+            className="ml-2 px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[10px] font-bold text-slate-300 hover:text-white cursor-pointer"
+          >
+            Clear ✕
+          </button>
+        </div>
+      )}
+
+      {/* TOP CHART INFO (Beginning of trade / End of trade - clean without i button) */}
+      <div className="absolute top-2 left-3 right-3 flex items-center justify-between text-[11px] text-slate-400 z-10 pointer-events-none">
         <div className="flex items-center gap-1.5">
-          <span className="w-3.5 h-3.5 rounded-full border border-slate-300 flex items-center justify-center text-[9px] text-slate-400 font-bold">
-            i
-          </span>
           <span className="w-2 h-2 rounded-full bg-emerald-500" />
-          <span className="font-mono-numbers text-slate-600 font-semibold">12:06:18</span>
+          <span className="font-mono-numbers text-slate-600 font-semibold">12:30:43</span>
           <span className="text-[10px] text-slate-400">GMT+5 »</span>
           <span className="hidden sm:inline text-slate-400 text-[10px]">Beginning of trade</span>
         </div>
@@ -328,65 +380,412 @@ export const TradingChart: React.FC<TradingChartProps> = ({
           </g>
         )}
 
-        {/* ACTIVE OPEN TRADES ON CHART (Screenshots 5, 6, 8, 9) */}
-        {openTrades.map((trade) => {
+        {/* ACTIVE OPEN TRADES ON CHART (Square Arrow Badge & Continuously Flowing SVG Dashed Line) */}
+        {openTrades.map((trade, idx) => {
           const tradeY = priceToY(trade.entryPrice);
           const now = Date.now();
           const remainingSec = Math.max(0, Math.ceil((trade.expireTime - now) / 1000));
+          const isHigher = trade.direction === 'HIGHER';
           const isWinning =
-            (trade.direction === 'HIGHER' && currentPrice > trade.entryPrice) ||
-            (trade.direction === 'LOWER' && currentPrice < trade.entryPrice);
+            (isHigher && currentPrice > trade.entryPrice) ||
+            (!isHigher && currentPrice < trade.entryPrice);
 
-          const badgeX = Math.max(40, chartWidth - 110);
+          // Find candle closest to trade start time
+          const candleIdx = visibleCandles.findIndex(
+            (c) => Math.abs(c.time - trade.startTime) < timeframeSeconds * 1200
+          );
+          const currentCandleX = (visibleCandles.length - 1) * candleSpacing + 20;
+          const tradeEntryX =
+            candleIdx !== -1
+              ? candleIdx * candleSpacing + 20
+              : Math.max(40, currentCandleX - 80);
+
+          const tradeColor = isHigher ? '#10b981' : '#ef4444';
+          const profitAmt = (trade.amount * (trade.payoutPercent / 100)).toFixed(2);
+          const totalReturn = (trade.amount * (1 + trade.payoutPercent / 100)).toFixed(2);
+          const positionColor = isWinning ? '#10b981' : '#ef4444';
 
           return (
-            <g key={trade.id}>
-              {/* Horizontal entry level dashed line */}
+            <g
+              key={trade.id}
+              onClick={() => {
+                playClickSound();
+                onSelectTrade?.(trade);
+              }}
+              className="cursor-pointer"
+            >
+              {/* Horizontal strike line across the chart at entry strike price */}
               <line
-                x1="20"
+                x1={tradeEntryX}
                 y1={tradeY}
-                x2={chartWidth + 6}
+                x2={currentCandleX}
                 y2={tradeY}
-                stroke={trade.direction === 'HIGHER' ? '#26a69a' : '#ef5350'}
-                strokeDasharray="4,4"
+                stroke={tradeColor}
                 strokeWidth="1.8"
+                strokeOpacity="0.8"
               />
 
-              {/* Start trade entry dot & connecting circle */}
-              <circle
-                cx={badgeX - 10}
-                cy={tradeY}
-                r="4.5"
-                fill="#ffffff"
-                stroke={trade.direction === 'HIGHER' ? '#26a69a' : '#ef5350'}
+              {/* CONTINUOUSLY FLOWING SVG DASHED LINE: connecting entry strike level to live candle & price level */}
+              <path
+                d={`M ${tradeEntryX} ${tradeY} L ${currentCandleX} ${tradeY} L ${currentCandleX} ${currentY}`}
+                fill="none"
+                stroke={tradeColor}
                 strokeWidth="2.5"
+                strokeDasharray="5,5"
+                className="animate-dash-flow"
               />
 
-              {/* Trade Pill Badge attached to line (Screenshot 6 & 8: ↑ $1 00:25) */}
-              <rect
-                x={badgeX}
-                y={tradeY - 11}
-                width="74"
-                height="22"
-                rx="6"
-                fill={isWinning ? '#10b981' : '#ef4444'}
-                filter="drop-shadow(0 2px 4px rgba(0,0,0,0.15))"
+              {/* Direct flowing connection line from entry point to live candle price */}
+              <line
+                x1={tradeEntryX}
+                y1={tradeY}
+                x2={currentCandleX}
+                y2={currentY}
+                stroke={tradeColor}
+                strokeWidth="2"
+                strokeDasharray="5,5"
+                strokeOpacity="0.75"
+                className="animate-dash-flow"
               />
 
-              <text
-                x={badgeX + 37}
-                y={tradeY + 4}
-                fill="#ffffff"
-                fontSize="11"
-                fontWeight="bold"
-                textAnchor="middle"
-                fontFamily="JetBrains Mono, monospace"
+              {/* Flowing dashed line continuing to chart right edge */}
+              <line
+                x1={currentCandleX}
+                y1={currentY}
+                x2={chartWidth + 6}
+                y2={currentY}
+                stroke={positionColor}
+                strokeWidth="2"
+                strokeDasharray="5,5"
+                className="animate-dash-flow"
+              />
+
+              {/* Entry point pulsing ring */}
+              <circle
+                cx={tradeEntryX}
+                cy={tradeY}
+                r="6"
+                fill="none"
+                stroke={tradeColor}
+                strokeWidth="1.5"
+                opacity="0.6"
+              />
+
+              {/* SQUARE ARROW BADGE AT ENTRY (Matching TradoWix size, arrow & color) */}
+              <g transform={`translate(${tradeEntryX - 11}, ${tradeY - 11})`}>
+                <rect
+                  width="22"
+                  height="22"
+                  rx="6"
+                  fill={tradeColor}
+                  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.25))"
+                />
+                <text
+                  x="11"
+                  y="15.5"
+                  fill="#ffffff"
+                  fontSize="12"
+                  fontWeight="900"
+                  textAnchor="middle"
+                >
+                  {isHigher ? '↗' : '↘'}
+                </text>
+              </g>
+
+              {/* Compact Amount & Timer Tag right next to the square (Compact Size - not oversized) */}
+              <g transform={`translate(${tradeEntryX + 14}, ${tradeY - 10})`}>
+                <rect
+                  width="62"
+                  height="20"
+                  rx="5"
+                  fill="#0f172a"
+                  fillOpacity="0.9"
+                  filter="drop-shadow(0 1px 3px rgba(0,0,0,0.2))"
+                />
+                <text
+                  x="31"
+                  y="14"
+                  fill="#ffffff"
+                  fontSize="9.5"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  fontFamily="JetBrains Mono, monospace"
+                >
+                  ${trade.amount} · 00:{remainingSec.toString().padStart(2, '0')}
+                </text>
+              </g>
+
+              {/* Strike Price Pill Badge */}
+              <g transform={`translate(${Math.max(5, tradeEntryX - 60)}, ${tradeY - 9})`}>
+                <rect
+                  width="46"
+                  height="18"
+                  rx="4"
+                  fill="#ffffff"
+                  stroke={tradeColor}
+                  strokeWidth="1"
+                  filter="drop-shadow(0 1px 3px rgba(0,0,0,0.06))"
+                />
+                <text
+                  x="23"
+                  y="13"
+                  fill="#1e293b"
+                  fontSize="9"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  fontFamily="JetBrains Mono, monospace"
+                >
+                  {trade.entryPrice.toFixed(asset.decimals)}
+                </text>
+              </g>
+
+              {/* Live Target Point Dot */}
+              <circle
+                cx={currentCandleX}
+                cy={currentY}
+                r="4.5"
+                fill={positionColor}
+                stroke="#ffffff"
+                strokeWidth="2"
+              />
+
+              {/* Compact Live P/L Badge at Current Candle */}
+              <g
+                transform={`translate(${Math.min(chartWidth - 95, currentCandleX + 12)}, ${
+                  currentY - 16
+                })`}
               >
-                {trade.direction === 'HIGHER' ? '↑' : '↓'} ${trade.amount} 00:{remainingSec.toString().padStart(2, '0')}
-              </text>
+                <rect
+                  width="80"
+                  height="30"
+                  rx="7"
+                  fill="#ffffff"
+                  stroke={positionColor}
+                  strokeWidth="1.4"
+                  filter="drop-shadow(0 3px 8px rgba(0,0,0,0.12))"
+                />
+                <text
+                  x="40"
+                  y="13"
+                  fill={positionColor}
+                  fontSize="11"
+                  fontWeight="900"
+                  textAnchor="middle"
+                  fontFamily="JetBrains Mono, monospace"
+                >
+                  {isWinning ? `+$${profitAmt}` : `-$${trade.amount.toFixed(2)}`}
+                </text>
+                <text
+                  x="40"
+                  y="25"
+                  fill="#64748b"
+                  fontSize="8.5"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  fontFamily="JetBrains Mono, monospace"
+                >
+                  {isWinning ? `Payout $${totalReturn}` : 'Out of Money'}
+                </text>
+              </g>
             </g>
           );
         })}
+
+        {/* INSPECTED TRADE FROM HISTORY (Showing exact flowing line from entry strike level to exit candle & price) */}
+        {inspectedTrade && inspectedTrade.status && (
+          <g key={`inspected-${inspectedTrade.id}`} className="z-20">
+            {(() => {
+              const entryY = priceToY(inspectedTrade.entryPrice);
+              const exitY = priceToY(inspectedTrade.exitPrice || inspectedTrade.entryPrice);
+              const isHigher = inspectedTrade.direction === 'HIGHER';
+              const isWon = inspectedTrade.status === 'WON';
+              const outcomeColor = isWon ? '#10b981' : '#ef4444';
+              const tradeColor = isHigher ? '#10b981' : '#ef4444';
+
+              // Approximate candles for entry and exit
+              const entryIdx = visibleCandles.findIndex(
+                (c) => Math.abs(c.time - inspectedTrade.startTime) < timeframeSeconds * 2000
+              );
+              const exitIdx = visibleCandles.findIndex(
+                (c) => Math.abs(c.time - inspectedTrade.expireTime) < timeframeSeconds * 2000
+              );
+
+              const entryX =
+                entryIdx !== -1
+                  ? entryIdx * candleSpacing + 20
+                  : Math.max(30, chartWidth - 160);
+              const exitX =
+                exitIdx !== -1
+                  ? exitIdx * candleSpacing + 20
+                  : Math.min(chartWidth - 25, entryX + 80);
+
+              return (
+                <g>
+                  {/* Strike level line across entry and exit */}
+                  <line
+                    x1={entryX}
+                    y1={entryY}
+                    x2={exitX}
+                    y2={entryY}
+                    stroke={tradeColor}
+                    strokeWidth="1.8"
+                    strokeDasharray="3,3"
+                    strokeOpacity="0.85"
+                  />
+
+                  {/* CONTINUOUSLY FLOWING SVG DASHED LINE (Entry strike to exit candle & price level) */}
+                  <path
+                    d={`M ${entryX} ${entryY} L ${exitX} ${entryY} L ${exitX} ${exitY}`}
+                    fill="none"
+                    stroke={outcomeColor}
+                    strokeWidth="2.5"
+                    strokeDasharray="5,5"
+                    className="animate-dash-flow"
+                  />
+
+                  {/* Direct connecting diagonal dashed line from entry to exit */}
+                  <line
+                    x1={entryX}
+                    y1={entryY}
+                    x2={exitX}
+                    y2={exitY}
+                    stroke={outcomeColor}
+                    strokeWidth="2"
+                    strokeDasharray="5,5"
+                    strokeOpacity="0.85"
+                    className="animate-dash-flow"
+                  />
+
+                  {/* Entry Square Badge */}
+                  <g transform={`translate(${entryX - 11}, ${entryY - 11})`}>
+                    <rect
+                      width="22"
+                      height="22"
+                      rx="6"
+                      fill={tradeColor}
+                      filter="drop-shadow(0 2px 4px rgba(0,0,0,0.25))"
+                    />
+                    <text
+                      x="11"
+                      y="15.5"
+                      fill="#ffffff"
+                      fontSize="12"
+                      fontWeight="900"
+                      textAnchor="middle"
+                    >
+                      {isHigher ? '↗' : '↘'}
+                    </text>
+                  </g>
+
+                  {/* Entry Strike Label */}
+                  <g transform={`translate(${Math.max(5, entryX - 58)}, ${entryY - 9})`}>
+                    <rect
+                      width="46"
+                      height="18"
+                      rx="4"
+                      fill="#ffffff"
+                      stroke={tradeColor}
+                      strokeWidth="1"
+                    />
+                    <text
+                      x="23"
+                      y="13"
+                      fill="#0f172a"
+                      fontSize="9"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                      fontFamily="JetBrains Mono, monospace"
+                    >
+                      {inspectedTrade.entryPrice.toFixed(asset.decimals)}
+                    </text>
+                  </g>
+
+                  {/* Exit Settlement Circle */}
+                  <circle
+                    cx={exitX}
+                    cy={exitY}
+                    r="5"
+                    fill={outcomeColor}
+                    stroke="#ffffff"
+                    strokeWidth="2"
+                  />
+
+                  {/* Exit Settlement Result Badge */}
+                  <g transform={`translate(${Math.max(10, Math.min(chartWidth - 90, exitX - 42))}, ${exitY - 26})`}>
+                    <rect
+                      width="84"
+                      height="22"
+                      rx="6"
+                      fill={outcomeColor}
+                      filter="drop-shadow(0 2px 6px rgba(0,0,0,0.2))"
+                    />
+                    <text
+                      x="42"
+                      y="15"
+                      fill="#ffffff"
+                      fontSize="10"
+                      fontWeight="900"
+                      textAnchor="middle"
+                      fontFamily="JetBrains Mono, monospace"
+                    >
+                      {isWon ? `WON +$${inspectedTrade.profit.toFixed(2)}` : `LOST -$${inspectedTrade.amount.toFixed(2)}`}
+                    </text>
+                  </g>
+                </g>
+              );
+            })()}
+          </g>
+        )}
+
+        {/* RECENT CLOSED TRADES SETTLEMENT MARKERS ON CHART (Clickable to inspect on graph) */}
+        {closedTrades
+          .filter((t) => t.assetId === asset.id)
+          .slice(0, 4)
+          .map((trade) => {
+            const exitY = priceToY(trade.exitPrice || trade.entryPrice);
+            const isWon = trade.status === 'WON';
+            // Find candle around expiry time
+            const candleIdx = visibleCandles.findIndex(
+              (c) => Math.abs(c.time - trade.expireTime) < timeframeSeconds * 2000
+            );
+            if (candleIdx === -1 && visibleCandles.length < 5) return null;
+            const markerX =
+              candleIdx !== -1
+                ? candleIdx * candleSpacing + 20
+                : Math.max(30, chartWidth - 140);
+
+            return (
+              <g
+                key={`closed-${trade.id}`}
+                transform={`translate(${markerX - 35}, ${exitY - 10})`}
+                onClick={() => {
+                  playClickSound();
+                  onSelectTrade?.(trade);
+                }}
+                className="cursor-pointer hover:opacity-100 transition-opacity"
+              >
+                <rect
+                  width="70"
+                  height="20"
+                  rx="5"
+                  fill={isWon ? '#10b981' : '#64748b'}
+                  opacity="0.9"
+                  filter="drop-shadow(0 1px 3px rgba(0,0,0,0.15))"
+                />
+                <text
+                  x="35"
+                  y="14"
+                  fill="#ffffff"
+                  fontSize="10"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  fontFamily="JetBrains Mono, monospace"
+                >
+                  {isWon ? `+$${(trade.amount + trade.profit).toFixed(1)}` : `-$${trade.amount}`}
+                </text>
+              </g>
+            );
+          })}
 
         {/* Horizontal Current Price Dotted Line (Screenshot 1 & 6) */}
         <line
@@ -429,31 +828,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
           );
         })}
       </svg>
-
-      {/* FLOATING DIRECT DIRECTIONAL ARROW (Screenshots 6 & 8: prominent green ↗ or red ↘) */}
-      {latestOpenTrade && (
-        <div
-          className="absolute z-20 pointer-events-none transition-all duration-300"
-          style={{
-            top: `${Math.max(60, Math.min(chartHeight - 60, currentY - 30))}px`,
-            left: `${chartWidth * 0.65}px`,
-          }}
-        >
-          <div
-            className={`w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-xl animate-bounce ${
-              latestOpenTrade.direction === 'HIGHER'
-                ? 'bg-[#10b981] shadow-emerald-500/40'
-                : 'bg-[#ef4444] shadow-red-500/40'
-            }`}
-          >
-            {latestOpenTrade.direction === 'HIGHER' ? (
-              <span className="text-xl font-black">↗</span>
-            ) : (
-              <span className="text-xl font-black">↘</span>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* RIGHT PRICE SCALE BAR */}
       <div

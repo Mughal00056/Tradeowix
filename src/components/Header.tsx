@@ -10,7 +10,9 @@ interface HeaderProps {
   openTrades: TradeOrder[];
   currentPrice: number;
   onOpenAssetSelector: () => void;
+  onOpenAssetInfo?: () => void;
   onOpenProfile: () => void;
+  onOpenAccountModal?: () => void;
   onSwitchAccountType: (type: 'DEMO' | 'REAL') => void;
   onResetDemoBalance: () => void;
 }
@@ -21,7 +23,9 @@ export const Header: React.FC<HeaderProps> = ({
   openTrades,
   currentPrice,
   onOpenAssetSelector,
+  onOpenAssetInfo,
   onOpenProfile,
+  onOpenAccountModal,
   onSwitchAccountType,
   onResetDemoBalance,
 }) => {
@@ -43,53 +47,60 @@ export const Header: React.FC<HeaderProps> = ({
     : null;
 
   return (
-    <header className="h-14 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-3 flex items-center justify-between select-none relative z-30">
-      {/* LEFT: Asset Selector Button (Screenshots 1, 5, 6, 8) */}
-      <button
-        onClick={() => {
-          playClickSound();
-          onOpenAssetSelector();
-        }}
-        className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white/80 hover:bg-slate-50/90 active:scale-98 transition-all shadow-xs"
-      >
-        <AssetIcon flags={currentAsset.flags} size="sm" />
-        <div className="flex flex-col text-left">
-          <div className="flex items-center gap-1">
-            <span className="font-bold text-xs text-slate-800 tracking-tight">
-              {currentAsset.symbol.replace(' (OTC)', '')}
-            </span>
-            <ChevronDown className="w-3 h-3 text-slate-400" />
-          </div>
-
-          <div className="flex items-center gap-1 leading-none">
-            <span className="text-[10px] font-bold text-emerald-600 font-mono-numbers">
-              {currentAsset.payoutPercent}%
-            </span>
-
-            {/* Live trade P/L in header (Screenshots 5 & 6) */}
-            {currentTradePL && (
-              <span
-                className={`text-[10px] font-mono-numbers font-black ${
-                  isWinning ? 'text-emerald-600' : 'text-red-500'
-                }`}
-              >
-                {currentTradePL}
+    <header className="h-14 bg-white/90 backdrop-blur-xl border-b border-slate-200/80 px-3 sm:px-6 flex items-center justify-between select-none relative z-30">
+      {/* LEFT: Asset Selector Button & Info "i" Button */}
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={() => {
+            playClickSound();
+            onOpenAssetSelector();
+          }}
+          className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white/80 hover:bg-slate-50/90 active:scale-98 transition-all shadow-xs cursor-pointer"
+        >
+          <AssetIcon flags={currentAsset.flags} size="sm" />
+          <div className="flex flex-col text-left">
+            <div className="flex items-center gap-1">
+              <span className="font-bold text-xs text-slate-800 tracking-tight">
+                {currentAsset.symbol.replace(' (OTC)', '')}
               </span>
-            )}
+              <ChevronDown className="w-3 h-3 text-slate-400" />
+            </div>
+
+            <div className="flex items-center gap-1 leading-none">
+              <span className="text-[10px] font-bold text-emerald-600 font-mono-numbers">
+                {currentAsset.payoutPercent}%
+              </span>
+
+              {/* Live trade P/L in header (Screenshots 5 & 6) */}
+              {currentTradePL && (
+                <span
+                  className={`text-[10px] font-mono-numbers font-black ${
+                    isWinning ? 'text-emerald-600' : 'text-red-500'
+                  }`}
+                >
+                  {currentTradePL}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      </button>
+        </button>
+      </div>
 
       {/* RIGHT CONTROLS: Balance Pill & User Avatar */}
       <div className="flex items-center gap-2">
-        {/* Balance Pill Button */}
+        {/* Balance Pill Button (Opens Account Switcher Modal) */}
         <div className="relative">
           <button
             onClick={() => {
               playClickSound();
-              setShowAccountDropdown(!showAccountDropdown);
+              if (onOpenAccountModal) {
+                onOpenAccountModal();
+              } else {
+                setShowAccountDropdown(!showAccountDropdown);
+              }
             }}
-            className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 active:scale-98 transition-all shadow-xs"
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 active:scale-98 transition-all shadow-xs cursor-pointer"
+            title="Trading Account & Balances"
           >
             <Briefcase className="w-3.5 h-3.5 text-amber-500" />
             <span className="font-mono-numbers font-bold text-xs text-slate-800">
@@ -106,7 +117,7 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </button>
 
-          {/* Account Dropdown Switcher */}
+          {/* Account Dropdown Switcher (Fallback if modal not used) */}
           {showAccountDropdown && (
             <div className="absolute right-0 top-full mt-1.5 w-60 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/60 p-2.5 z-40 animate-in fade-in duration-100">
               <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1">

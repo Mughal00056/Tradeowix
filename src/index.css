@@ -61,3 +61,16 @@
 .animate-laser {
   animation: laserSweep 2s infinite linear;
 }
+
+@keyframes tradeDashFlow {
+  from {
+    stroke-dashoffset: 16;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-dash-flow {
+  animation: tradeDashFlow 0.75s linear infinite;
+}

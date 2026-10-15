@@ -31,12 +31,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onUpdateName,
 }) => {
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/35 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-start justify-end bg-slate-900/60 backdrop-blur-2xl animate-in fade-in duration-150 select-none">
       {/* Backdrop click to close */}
       <div className="absolute inset-0" onClick={onClose} />
 
-      {/* Profile Card Container (Exact match to Screenshot 2) */}
-      <div className="relative w-full max-w-xs sm:w-80 bg-white h-full sm:h-auto sm:max-h-[92vh] sm:my-3 sm:mr-3 rounded-l-3xl sm:rounded-2xl shadow-2xl flex flex-col overflow-y-auto border border-slate-200 z-10 animate-in slide-in-from-right duration-200">
+      {/* Profile Card Container (Glass UI Blur & Mobile Dimensions) */}
+      <div className="relative w-full max-w-xs sm:max-w-sm bg-white/95 backdrop-blur-3xl h-full sm:h-auto sm:max-h-[92vh] sm:my-3 sm:mr-3 rounded-l-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-y-auto border border-white/70 z-10 animate-in slide-in-from-right duration-200">
         {/* Close button header */}
         <div className="flex items-center justify-end p-3 pb-0">
           <button

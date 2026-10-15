@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTradingEngine } from './hooks/useTradingEngine';
 import { LoadingScreen } from './components/LoadingScreen';
 import { Header } from './components/Header';
@@ -21,8 +21,10 @@ import { StatsModal } from './components/StatsModal';
 import { WithdrawModal } from './components/WithdrawModal';
 import { KycModal } from './components/KycModal';
 import { BonusModal } from './components/BonusModal';
-import { ConfirmTradeModal } from './components/ConfirmTradeModal';
-import { TradeDirection } from './types/trading';
+import { TradeResultModal } from './components/TradeResultModal';
+import { AssetInfoModal } from './components/AssetInfoModal';
+import { AccountModal } from './components/AccountModal';
+import { TradeDirection, TradeOrder } from './types/trading';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -30,7 +32,9 @@ export default function App() {
 
   // Modals state
   const [showAssetSelector, setShowAssetSelector] = useState(false);
+  const [showAssetInfo, setShowAssetInfo] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
   const [showTradesDrawer, setShowTradesDrawer] = useState(false);
@@ -40,14 +44,9 @@ export default function App() {
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showKyc, setShowKyc] = useState(false);
   const [showBonus, setShowBonus] = useState(false);
+  const [inspectedTrade, setInspectedTrade] = useState<TradeOrder | null>(null);
 
-  // Trade confirmation sheet (Screenshot 5)
-  const [oneClickEnabled, setOneClickEnabled] = useState(false);
-  const [pendingTrade, setPendingTrade] = useState<{
-    direction: TradeDirection;
-    amount: number;
-    durationSeconds: number;
-  } | null>(null);
+
 
   const {
     assets,
@@ -65,6 +64,8 @@ export default function App() {
     user,
     openTrades,
     closedTrades,
+    lastFinishedTrade,
+    setLastFinishedTrade,
     placeTrade,
     toggleFavorite,
     switchAccountType,
@@ -74,19 +75,17 @@ export default function App() {
     signals,
   } = useTradingEngine();
 
-  // Handle trade button click from dock
-  const handleInitiateTrade = (direction: TradeDirection, amount: number, durationSec: number) => {
-    if (oneClickEnabled) {
-      placeTrade(direction, amount, durationSec);
-    } else {
-      setPendingTrade({ direction, amount, durationSeconds: durationSec });
-    }
-  };
+  // Hard safety timeout: guaranteed to never stay stuck on loading screen
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1100);
+    return () => clearTimeout(timer);
+  }, []);
 
-  const handleConfirmTrade = () => {
-    if (!pendingTrade) return;
-    placeTrade(pendingTrade.direction, pendingTrade.amount, pendingTrade.durationSeconds);
-    setPendingTrade(null);
+  // Handle trade button click from dock: Instant 1-click execution!
+  const handleInitiateTrade = (direction: TradeDirection, amount: number, durationSec: number) => {
+    placeTrade(direction, amount, durationSec);
   };
 
   // Handle bottom navigation tabs
@@ -159,8 +158,8 @@ export default function App() {
       {/* Loading Screen on Initial Load (Screenshot 1: minimalist line-drawn logo) */}
       {isLoading && <LoadingScreen onComplete={() => setIsLoading(false)} />}
 
-      {/* Main Responsive Device Container (Screenshots 1, 5, 6, 8, 10, 11) */}
-      <div className="w-full max-w-md bg-white min-h-screen flex flex-col shadow-2xl relative overflow-hidden">
+      {/* Main Responsive Device Container (Authentic TradoWix Mobile Size) */}
+      <div className="w-full max-w-md mx-auto bg-white min-h-screen flex flex-col shadow-2xl relative overflow-hidden">
         {/* Top Header */}
         <Header
           currentAsset={currentAsset}
@@ -168,7 +167,9 @@ export default function App() {
           openTrades={openTrades}
           currentPrice={currentPrice}
           onOpenAssetSelector={() => setShowAssetSelector(true)}
+          onOpenAssetInfo={() => setShowAssetInfo(true)}
           onOpenProfile={() => setShowProfile(true)}
+          onOpenAccountModal={() => setShowAccountModal(true)}
           onSwitchAccountType={switchAccountType}
           onResetDemoBalance={resetDemoBalance}
         />
@@ -180,9 +181,13 @@ export default function App() {
             candles={candles}
             currentPrice={currentPrice}
             openTrades={openTrades.filter((t) => t.assetId === currentAsset.id)}
+            closedTrades={closedTrades.filter((t) => t.assetId === currentAsset.id)}
+            inspectedTrade={inspectedTrade}
+            onSelectTrade={setInspectedTrade}
             timeframeSeconds={timeframeSeconds}
             setTimeframeSeconds={setTimeframeSeconds}
             countdownSeconds={countdownSeconds}
+            onOpenAssetInfo={() => setShowAssetInfo(true)}
           />
         </main>
 
@@ -202,20 +207,7 @@ export default function App() {
           openTradesCount={openTrades.length}
         />
 
-        {/* MODAL: Confirm Trade Sheet (Screenshot 5) */}
-        {pendingTrade && (
-          <ConfirmTradeModal
-            asset={currentAsset}
-            direction={pendingTrade.direction}
-            amount={pendingTrade.amount}
-            openPrice={currentPrice}
-            durationSeconds={pendingTrade.durationSeconds}
-            oneClickEnabled={oneClickEnabled}
-            setOneClickEnabled={setOneClickEnabled}
-            onConfirm={handleConfirmTrade}
-            onClose={() => setPendingTrade(null)}
-          />
-        )}
+
 
         {/* MODAL: Asset Selector Modal (Screenshot 6) */}
         {showAssetSelector && (
@@ -270,12 +262,30 @@ export default function App() {
             closedTrades={closedTrades}
             assets={assets}
             currentPrices={pricesMap}
+            onSelectTrade={(trade) => {
+              if (trade.assetId !== currentAssetId) {
+                setCurrentAssetId(trade.assetId);
+              }
+              setInspectedTrade(trade);
+              setShowTradesDrawer(false);
+              setActiveTab('trade');
+            }}
             onClose={() => {
               setShowTradesDrawer(false);
               setActiveTab('trade');
             }}
           />
         )}
+
+        {/* MODAL: Account Switcher & Overview (TradoWix Glass UI) */}
+        <AccountModal
+          user={user}
+          isOpen={showAccountModal}
+          onClose={() => setShowAccountModal(false)}
+          onSwitchAccountType={switchAccountType}
+          onResetDemoBalance={resetDemoBalance}
+          onNavigate={handleNavigateFromMenu}
+        />
 
         {/* MODAL: Live Trading Signals */}
         {showSignals && (
@@ -337,6 +347,23 @@ export default function App() {
           <BonusModal
             onClose={() => setShowBonus(false)}
             onOpenDeposit={() => setShowDeposit(true)}
+          />
+        )}
+
+        {/* MODAL: Trade Result Settlement Card (Glass UI - No spam notifications) */}
+        {lastFinishedTrade && (
+          <TradeResultModal
+            trade={lastFinishedTrade}
+            onClose={() => setLastFinishedTrade(null)}
+          />
+        )}
+
+        {/* MODAL: Full Screen Asset Information & Trading Conditions (Screenshots 1, 3, 4, 11) */}
+        {showAssetInfo && (
+          <AssetInfoModal
+            asset={currentAsset}
+            currentPrice={currentPrice}
+            onClose={() => setShowAssetInfo(false)}
           />
         )}
       </div>

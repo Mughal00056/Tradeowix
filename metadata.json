@@ -1,0 +1,6 @@
+{
+  "name": "TradoWix - Online Trading Platform",
+  "description": "High-speed binary options and forex offline & online trading platform with live interactive candlestick charts, instant demo trading, and signals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
